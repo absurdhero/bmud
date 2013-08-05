@@ -16,12 +16,14 @@
   (define name (read-username in out))
   (unless name
     (close-connection))
+  
+  (display "\n" out)
 
   (unless (user-exists? name)
-    (displayln "I have not seen you before. Welcome to the dungeons of BMUD!" out)
+    (display (colorize 'yellow "I have not seen you before.\n") out)
     (create-user name))
 
-  (displayln "Welcome Back!" out)
+  (display (colorize 'red "Welcome to the dungeons of BMUD!\n\n") out)
 
   (next-line (user-get name) in out) ;; processes input until the client exits
   (close-connection))
