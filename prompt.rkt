@@ -1,5 +1,6 @@
 #lang racket
 
+(require "user.rkt")
 (require "handlers.rkt")
 (require "ansi-term.rkt")
 
@@ -28,20 +29,6 @@
   (next-line (user-get name) in out) ;; processes input until the client exits
   (close-connection))
 
-(define users (make-hash))
-
-(define (user-exists? name)
-  (hash-has-key? users name))
-
-(define (user-get name)
-  (hash-ref users name))
-
-(define (create-user name)
-  (define state (make-hash))
-  (hash-set! state "name" name)
-  (hash-set! state "location" (cons 0 0))
-  (hash-set! users name state))
-
 (define (read-username in out)
   (display "\n" out)
   (display (colorize 'yellow "name: ") out)
@@ -51,7 +38,6 @@
   (if (eof-object? line)
       #f
       (string-trim line)))
-
 
 (define (empty-trimmed-string? str)
       (zero? (string-length (string-trim str))))
