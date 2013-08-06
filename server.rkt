@@ -1,8 +1,13 @@
 #lang racket
 
-(provide serve)
+(provide
+ serve
+ (struct-out server-control))
 
-; provide a port number and a function that will handle connections
+; monitor and stop a server
+(struct server-control (thread stop))
+
+; provide a port number and a function that will handle connections.
 ; connected-handler is given the input and output ports.
 (define (serve port-no connected-handler)
   (define main-custodian (make-custodian))
@@ -11,14 +16,16 @@
     (define (loop)
       (accept-and-handle listener connected-handler)
       (loop))
-    (thread loop))
-
-  (displayln "started")
-  
-  ; return a function to stop the server and all client connections
-  (lambda ()
-    (custodian-shutdown-all main-custodian)
-    (displayln "stopped")))
+    
+    (define server-thread (thread loop))
+    
+    (displayln "started")
+    
+    ; return the thread and a function to stop the server and all connections
+    (server-control server-thread
+                    (lambda ()
+                      (custodian-shutdown-all main-custodian)
+                      (displayln "stopped")))))
 
 (define (accept-and-handle listener connected-handler)
   (define cust (make-custodian))
