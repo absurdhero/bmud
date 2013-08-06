@@ -3,14 +3,19 @@
 ; expose function to find a handler
 
 (provide
- session-ctx
- (struct-out session-ctx)
+ session-ctx%
  get-handler
  create-handler
  single-line-handler)
 
 ; session information passed to handlers
-(struct session-ctx (command args user print))
+(define session-ctx%
+  (class object%
+    (init-field command args user out)
+    
+    (super-new)
+    
+    (define/public (print text) (displayln text out))))
 
 (define dispatch-table (make-hash))
 
@@ -33,15 +38,15 @@
 (single-line-handler
  "hello"
  (lambda (session)
-   ((session-ctx-print session) "Hello, World!")))
+   (send session print "Hello, World!")))
 
 
 (single-line-handler
  "walk"
  (lambda (session)
-   (define args (session-ctx-args session))
-   (define print (session-ctx-print session))
-   (define user (session-ctx-user session))
+   (define args (get-field args session))
+   (define user (get-field user session))
+   (define (print text) (send session print text))
    
    (define (move direction)
      (define old-location (hash-ref user "location"))

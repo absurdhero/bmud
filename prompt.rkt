@@ -79,15 +79,15 @@
 (define (next-command user-state line out)
   (define words (string-split line))
   (define command (first words))
-  (define (print text) (displayln text out))
-  (define session (session-ctx command
-                               (rest words)
-                               user-state
-                               print))
+  (define session (new session-ctx%
+                       [command command]
+                       [args (rest words)]
+                       [user user-state]
+                       [out out]))
   (define handler (get-handler command))
   
   (if handler
       (handler session)
       (begin
-        (print "I don't understand")
+        (send session print "I don't understand")
         #f)))
