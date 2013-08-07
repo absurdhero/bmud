@@ -1,6 +1,7 @@
 #lang racket
 
 ; expose function to find a handler
+(require "user.rkt")
 
 (provide
  session-ctx%
@@ -49,20 +50,20 @@
    (define (print text) (send session print text))
    
    (define (move direction)
-     (define old-location (hash-ref user "location"))
+     (define old-location (user-prop user "location"))
      (define new-location
-                (case direction
-                  [(string "n") (cons (car old-location) (+ (cdr old-location) 1))]
-                  [(string "s") (cons (car old-location) (- (cdr old-location) 1))]
-                  ))
-     (hash-set! user "location" new-location)
+       (case direction
+         [(string "n") (cons (car old-location) (+ (cdr old-location) 1))]
+         [(string "s") (cons (car old-location) (- (cdr old-location) 1))]
+         ))
+     (user-prop-set! user "location" new-location)
      new-location)
-     
+   
    (if (empty? args)
        (print "where do you want to walk?")
        (begin
          (move (first args))
          (print (string-join
-                 (list "walking" (first args) "to" (~a (hash-ref user "location")))))
+                 (list "walking" (first args) "to" (~a (user-prop user "location")))))
          ))))
 

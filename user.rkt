@@ -3,7 +3,9 @@
 (provide
  user-exists?
  user-get
- create-user)
+ create-user
+ user-prop
+ user-prop-set!)
 
 (define users (make-hash))
 
@@ -14,7 +16,13 @@
   (hash-ref users name))
 
 (define (create-user name)
-  (define state (make-hash))
-  (hash-set! state "name" name)
-  (hash-set! state "location" (cons 0 0))
-  (hash-set! users name state))
+  (define user (make-hash))
+  (hash-set! user "name" name)
+  (hash-set! user "location" (cons 0 0))
+  (hash-set! users name user))
+
+(define (user-prop user ref)
+  (hash-ref user ref))
+
+(define (user-prop-set! user ref value)
+  (hash-set! user ref value))
