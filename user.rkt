@@ -19,7 +19,8 @@
   (define user (make-hash))
   (hash-set! user "name" name)
   (hash-set! user "location" (cons 0 0))
-  (hash-set! users name user))
+  (hash-set! users name user)
+  user)
 
 (define (user-prop user ref)
   (hash-ref user ref))

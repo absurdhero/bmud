@@ -2,6 +2,7 @@
 
 (require "user.rkt")
 (require "handlers.rkt")
+(require "map.rkt")
 (require "ansi-term.rkt")
 
 (provide new-mud-connection)
@@ -22,7 +23,8 @@
 
   (unless (user-exists? name)
     (display (colorize 'yellow "I have not seen you before.\n") out)
-    (create-user name))
+    (define user (create-user name))
+    (user-prop-set! user "room" starting-room))
 
   (display (colorize 'red "Welcome to the dungeons of BMUD!\n\n") out)
 

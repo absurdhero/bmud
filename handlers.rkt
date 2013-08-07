@@ -41,6 +41,12 @@
  (lambda (session)
    (send session print "Hello, World!")))
 
+(single-line-handler
+ "directions"
+ (lambda (session)
+   (define user (get-field user session))
+   (send session print
+         (string-join (send (user-prop user "room") directions)))))
 
 (single-line-handler
  "walk"
@@ -50,20 +56,17 @@
    (define (print text) (send session print text))
    
    (define (move direction)
-     (define old-location (user-prop user "location"))
-     (define new-location
-       (case direction
-         [(string "n") (cons (car old-location) (+ (cdr old-location) 1))]
-         [(string "s") (cons (car old-location) (- (cdr old-location) 1))]
-         ))
-     (user-prop-set! user "location" new-location)
-     new-location)
+     (define current-room (user-prop user "room"))
+     (if (send current-room connects? direction)
+         (user-prop-set! user "room" (send current-room go-to direction))
+         #f))
    
    (if (empty? args)
        (print "where do you want to walk?")
        (begin
-         (move (first args))
-         (print (string-join
-                 (list "walking" (first args) "to" (~a (user-prop user "location")))))
+         (if (move (first args))
+             (print (string-join
+                 (list "walking" (first args) "to" (get-field name (user-prop user "room")))))
+             (print "I don't see how to do that."))
          ))))
 

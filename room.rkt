@@ -1,5 +1,7 @@
 #lang racket
 
+(provide room% passage%)
+
 (define room%
   (class object%
     (init-field name)
@@ -14,14 +16,23 @@
       (send room connect-one-way this (get-field reverse passage)))
 
     (define/public (connect-one-way room passage)
-      (hash-set! connections passage room))
+      (hash-set! connections (get-field to passage) room))
     
     (define/public (connects? passage)
-      (hash-has-key? connections passage))
+      (hash-has-key? connections
+                     (to-direction passage)))
+    
+    (define/public (directions)
+      (hash-keys connections))
     
     (define/public (go-to passage)
-      (hash-ref connections passage))
+      (hash-ref connections (to-direction passage)))
     
+    (define (to-direction passage)
+      (if (string? passage)
+                         passage
+                         (get-field to passage)))
+
     ; store arbitrary properties
     (define properties (make-hash))
     (define/public (prop ref) (hash-ref properties ref))
@@ -49,6 +60,8 @@
   (send single-room connect other-room north)
   
   (check-equal? (send single-room connects? north) #t)
+    (check-equal? (send single-room connects? "n") #t)
+
   (check-equal? (send other-room connects? (get-field reverse north)) #t)
   (check-equal? (send single-room go-to north) other-room)
   )
