@@ -1,0 +1,54 @@
+#lang racket
+
+(define room%
+  (class object%
+    (init-field name)
+      
+    (super-new)
+    
+    ; connect rooms together
+    (define connections (make-hash))
+    
+    (define/public (connect room passage)
+      (connect-one-way room passage)
+      (send room connect-one-way this (get-field reverse passage)))
+
+    (define/public (connect-one-way room passage)
+      (hash-set! connections passage room))
+    
+    (define/public (connects? passage)
+      (hash-has-key? connections passage))
+    
+    (define/public (go-to passage)
+      (hash-ref connections passage))
+    
+    ; store arbitrary properties
+    (define properties (make-hash))
+    (define/public (prop ref) (hash-ref properties ref))
+    (define/public (prop-set! ref value) (hash-set! properties ref value))
+    (define/public (has-prop? ref) (hash-has-key? properties ref))))
+
+(define passage%
+  (class object%
+    (define (make-reverse)
+      (new passage% (to fro-name) (fro to-name) (reverse this)))
+    
+    (init-field [(to-name to)] [(fro-name fro)] [reverse (make-reverse)])
+    
+    (super-new)))
+
+(module+ test
+  (require rackunit)
+  
+  (define single-room (new room% (name "single")))
+  (define north (new passage% (to "n") (fro "s")))
+  
+  (check-equal? (send single-room connects? (get-field to north)) #f)
+
+  (define other-room (new room% (name "other")))
+  (send single-room connect other-room north)
+  
+  (check-equal? (send single-room connects? north) #t)
+  (check-equal? (send other-room connects? (get-field reverse north)) #t)
+  (check-equal? (send single-room go-to north) other-room)
+  )
