@@ -46,7 +46,7 @@
  (lambda (session)
    (define user (get-field user session))
    (send session print
-         (string-join (send (user-prop user "room") directions)))))
+         (string-join (send (send user room) directions)))))
 
 (single-line-handler
  "walk"
@@ -56,9 +56,9 @@
    (define (print text) (send session print text))
    
    (define (move direction)
-     (define current-room (user-prop user "room"))
+     (define current-room (send user room))
      (if (send current-room connects? direction)
-         (user-prop-set! user "room" (send current-room go-to direction))
+         (send user room-set! (send current-room go-to direction))
          #f))
    
    (if (empty? args)
@@ -66,7 +66,7 @@
        (begin
          (if (move (first args))
              (print (string-join
-                 (list "walking" (first args) "to" (get-field name (user-prop user "room")))))
+                 (list "walking" (first args) "to" (get-field name (send user room)))))
              (print "I don't see how to do that."))
          ))))
 

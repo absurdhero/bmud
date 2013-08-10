@@ -1,11 +1,11 @@
 #lang racket
 
+(require "serializable.rkt")
+
 (provide
  user-exists?
  user-get
- create-user
- user-prop
- user-prop-set!)
+ create-user)
 
 (define users (make-hash))
 
@@ -15,15 +15,33 @@
 (define (user-get name)
   (hash-ref users name))
 
-(define (create-user name)
-  (define user (make-hash))
-  (hash-set! user "name" name)
-  (hash-set! user "location" (cons 0 0))
-  (hash-set! users name user)
-  user)
+(define (create-user name starting-room)
+  (hash-set! users name
+             (new user% (name name) (starting-room starting-room))))
 
-(define (user-prop user ref)
-  (hash-ref user ref))
+(define user%
+  (class serializable%
+    (inherit make-next)
+    (init-field name starting-room)
+    (init [uid (make-next)])
+    (super-new [uid uid])
+    
+    (define properties (make-hash))
+    
+    (prop-set! "room" starting-room)
+    (send starting-room user-join this)
+    
+    (define/public (prop ref)
+      (hash-ref properties ref))
+    
+    (define/public (prop-set! ref value)
+      (hash-set! properties ref value))
+    
+    (define/public (room)
+      (prop "room"))
 
-(define (user-prop-set! user ref value)
-  (hash-set! user ref value))
+    (define/public (room-set! next-room)
+      (send (room) user-leave this)
+      (send next-room user-join this)
+      (prop-set! "room" next-room)
+      )))

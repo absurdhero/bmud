@@ -1,12 +1,15 @@
 #lang racket
 
+(require "serializable.rkt")
+
 (provide room% passage%)
 
 (define room%
-  (class object%
+  (class serializable%
+    (inherit make-next)
     (init-field name)
-      
-    (super-new)
+    (init [uid (make-next)])
+    (super-new [uid uid])
     
     ; connect rooms together
     (define connections (make-hash))
@@ -32,6 +35,13 @@
       (if (string? passage)
                          passage
                          (get-field to passage)))
+
+    ; track who is in the room
+    (define users (make-hash))
+    (define/public (user-join user)
+      (hash-set! users (get-field uid user) user))
+    (define/public (user-leave user)
+      (hash-remove! users (get-field uid user)))
 
     ; store arbitrary properties
     (define properties (make-hash))

@@ -23,8 +23,7 @@
 
   (unless (user-exists? name)
     (display (colorize 'yellow "I have not seen you before.\n") out)
-    (define user (create-user name))
-    (user-prop-set! user "room" starting-room))
+    (create-user name starting-room))
 
   (display (colorize 'red "Welcome to the dungeons of BMUD!\n\n") out)
 
