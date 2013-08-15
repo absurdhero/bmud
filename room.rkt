@@ -7,7 +7,7 @@
 (define room%
   (class serializable%
     (inherit make-next)
-    (init-field name)
+    (init-field [name #f])
     (init [uid (make-next)])
     (super-new [uid uid])
     
@@ -17,7 +17,7 @@
     (define/public (connect room passage)
       (connect-one-way room passage)
       (send room connect-one-way this (get-field reverse passage)))
-
+    
     (define/public (connect-one-way room passage)
       (hash-set! connections (get-field to passage) room))
     
@@ -33,21 +33,32 @@
     
     (define (to-direction passage)
       (if (string? passage)
-                         passage
-                         (get-field to passage)))
-
+          passage
+          (get-field to passage)))
+    
     ; track who is in the room
     (define users (make-hash))
     (define/public (user-join user)
       (hash-set! users (get-field uid user) user))
     (define/public (user-leave user)
       (hash-remove! users (get-field uid user)))
-
+    
     ; store arbitrary properties
     (define properties (make-hash))
     (define/public (prop ref) (hash-ref properties ref))
     (define/public (prop-set! ref value) (hash-set! properties ref value))
-    (define/public (has-prop? ref) (hash-has-key? properties ref))))
+    (define/public (has-prop? ref) (hash-has-key? properties ref))
+    
+    ; serialization
+    (define/augment (from-map map)
+      (set-field! name this (hash-ref map 'name))
+      (set-field! connections this (hash-ref map 'connections))
+      (set-field! properties this (hash-ref map 'properties)))
+    
+    (define/augment (to-map)
+      (hash-set*! (make-hash) 'name name 'connections connections 'properties properties))
+    
+    ))
 
 (define passage%
   (class object%

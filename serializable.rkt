@@ -1,7 +1,7 @@
 #lang racket
 
 (provide serializable%)
-
+ 
 (define current-id (box 1000))
 
 (define serializable%
@@ -9,6 +9,14 @@
     (define/public (make-next)
       (+ 1 (unbox current-id)))
     
+    ; to be augmented by subclasses
+    (define/pubment (from-map map)
+      (set-field! uid this (hash-ref map uid))
+      (inner #f from-map map))
+
+    (define/pubment (to-map)
+      (hash-set! (inner #f to-map) '(('uid . uid))))
+
     (init-field [uid (make-next)])
 
     (super-new)
