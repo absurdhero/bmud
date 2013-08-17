@@ -81,11 +81,13 @@
     (field (outer-room #f) (commands (make-hash)))
     
     (define/public (register-command cmd func)
+      (unless (eq? (procedure-arity func) 2)
+        (raise-arity-error func 2))
       (hash-set! commands cmd func))
     
     (define/public (invoke-command cmd args)
       (if (hash-has-key? commands cmd)
-          ((hash-ref commands cmd) args)
+          ((hash-ref commands cmd) this args)
           (if outer-room
               (send outer-room invoke-command cmd args)
               (raise-user-error "command not found"))))
@@ -151,7 +153,7 @@
                  (reset-rooms)
                  (define was-invoked #f)
                  (send obj-in-room register-command "test"
-                       (lambda (args) (set! was-invoked #t)))
+                       (lambda (target args) (set! was-invoked #t)))
                  
                  (check-not-exn
                   (λ () (send obj-in-room invoke-command "test" "")))
@@ -160,12 +162,12 @@
       (test-case "the most specific command runs when there are multiple implementations"
                  (reset-rooms)
                  (send obj-in-room register-command "test"
-                       (lambda (args) (set! was-invoked #t)))
+                       (lambda (target args) (set! was-invoked #t)))
                  
                  (define was-invoked #f)
                  
                  (send outer-room register-command "test"
-                       (lambda (args) (set! was-invoked #f)))
+                       (lambda (target args) (set! was-invoked #f)))
                  
                  (check-not-exn
                   (λ () (send obj-in-room invoke-command "test" "")))
@@ -176,7 +178,7 @@
                  (define was-invoked #f)
                  
                  (send outer-room register-command "test"
-                       (lambda (args) (set! was-invoked #t)))
+                       (lambda (target args) (set! was-invoked #t)))
                  
                  (check-not-exn
                   (λ () (send obj-in-room invoke-command "test" "")))
