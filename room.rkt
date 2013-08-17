@@ -69,20 +69,121 @@
     
     (super-new)))
 
+; A mixin that supports executing registered commands or dispatching them to
+; the containing room.
+
+(define room-dispatch-interface (interface () invoke-command set-outer))
+
+(define in-room-mixin
+  (mixin () (room-dispatch-interface)
+    (super-new)
+    
+    (field (outer-room #f) (commands (make-hash)))
+    
+    (define/public (register-command cmd func)
+      (hash-set! commands cmd func))
+    
+    (define/public (invoke-command cmd args)
+      (if (hash-has-key? commands cmd)
+          ((hash-ref commands cmd) args)
+          (if outer-room
+              (send outer-room invoke-command cmd args)
+              (raise-user-error "command not found"))))
+    
+    (define/public (set-outer room)
+      (set! outer-room room))
+    ))
+
+
 (module+ test
   (require rackunit)
   
   (define single-room (new room% (name "single")))
   (define north (new passage% (to "n") (fro "s")))
   
-  (check-equal? (send single-room connects? (get-field to north)) #f)
-
-  (define other-room (new room% (name "other")))
-  (send single-room connect other-room north)
+  (define in-a-room%
+    (in-room-mixin (class object% (super-new))))
   
-  (check-equal? (send single-room connects? north) #t)
-    (check-equal? (send single-room connects? "n") #t)
-
-  (check-equal? (send other-room connects? (get-field reverse north)) #t)
-  (check-equal? (send single-room go-to north) other-room)
+  
+  (define obj-in-room (new in-a-room%))
+  (define outer-room (new in-a-room%))
+  
+  ; called for each test that uses the above room objects
+  (define (reset-rooms)
+    (set! obj-in-room (new in-a-room%))
+    (set! outer-room (new in-a-room%))
+    (send obj-in-room set-outer outer-room))
+  
+  (define room-tests
+    (test-suite
+     "given rooms"
+     
+     (test-case "cannot go north when room does not connect"
+                (check-equal? (send single-room connects? (get-field to north)) #f))
+     
+     (test-case "can move back and forth when two rooms are connected"
+                (define other-room (new room% (name "other")))
+                (send single-room connect other-room north)
+                
+                (check-equal? (send single-room connects? north) #t)
+                (check-equal? (send single-room connects? "n") #t)
+                
+                (check-equal? (send other-room connects? (get-field reverse north)) #t)
+                (check-equal? (send single-room go-to north) other-room)
+                )
+     
+     (test-case "raise an exception when a command does not exist in a single room"
+                (define obj-in-room (new in-a-room%))
+                (check-exn exn:fail:user?
+                           (λ ()
+                             (send obj-in-room invoke-command "test" ""))))
+     
+     (test-suite
+      "given an object inside of an outer room"
+      
+      (test-case "raise an exception when a command does not exist"
+                 (reset-rooms)
+                 (check-exn exn:fail:user?
+                            (λ ()
+                              (send obj-in-room invoke-command "test" ""))))
+      
+      (test-case "run a command when it is invoked"
+                 (reset-rooms)
+                 (define was-invoked #f)
+                 (send obj-in-room register-command "test"
+                       (lambda (args) (set! was-invoked #t)))
+                 
+                 (check-not-exn
+                  (λ () (send obj-in-room invoke-command "test" "")))
+                 (check-equal? was-invoked #t "expected command to be invoked"))
+      
+      (test-case "the most specific command runs when there are multiple implementations"
+                 (reset-rooms)
+                 (send obj-in-room register-command "test"
+                       (lambda (args) (set! was-invoked #t)))
+                 
+                 (define was-invoked #f)
+                 
+                 (send outer-room register-command "test"
+                       (lambda (args) (set! was-invoked #f)))
+                 
+                 (check-not-exn
+                  (λ () (send obj-in-room invoke-command "test" "")))
+                 (check-equal? was-invoked #t "expected command to be invoked"))
+      
+      (test-case "command defined in outer room is run when invoked from inner"
+                 (reset-rooms)
+                 (define was-invoked #f)
+                 
+                 (send outer-room register-command "test"
+                       (lambda (args) (set! was-invoked #t)))
+                 
+                 (check-not-exn
+                  (λ () (send obj-in-room invoke-command "test" "")))
+                 (check-equal? was-invoked #t "expected command to be invoked"))
+      ))
+    )
+  
+  (require rackunit/text-ui)
+  (run-tests room-tests)
   )
