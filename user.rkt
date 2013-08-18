@@ -1,7 +1,7 @@
 #lang racket
 
 (require "serializable.rkt")
-
+(require "room.rkt")
 
 (provide
  user-exists?
@@ -22,35 +22,39 @@
 
 
 (define user%
-  (class serializable%
-  (inherit make-next)
-  (init-field [name #f] [starting-room #f])
-  (init [uid (make-next)])
-  (super-new [uid uid])
-  
-  (define properties (make-hash))
-  
-  (define/augment (from-map map)
-    (set-field! name this (hash-ref map 'name))
-    (set-field! properties this (hash-ref map 'properties)))
+  (class serializable-in-room%
+    (inherit make-next)
+    (init-field [name #f] [starting-room #f])
+    (init [uid (make-next)])
+    (super-new [uid uid])
     
-  (define/augment (to-map)
-    (hash-set*! (make-hash) 'name name 'properties properties))
-  
-  (prop-set! "room" starting-room)
-  (send starting-room user-join this)
-  
-  (define/public (prop ref)
-    (hash-ref properties ref))
-  
-  (define/public (prop-set! ref value)
-    (hash-set! properties ref value))
-  
-  (define/public (room)
-    (prop "room"))
-  
-  (define/public (room-set! next-room)
-    (send (room) user-leave this)
-    (send next-room user-join this)
-    (prop-set! "room" next-room)
-    )))
+    (define properties (make-hash))
+    
+    (inherit set-outer)
+    (set-outer starting-room)
+    (send starting-room user-join this)
+    
+    (log-debug (~a "created user " name " #" uid))
+    
+    (define/augment (from-map map)
+      (set-field! name this (hash-ref map 'name))
+      (set-field! properties this (hash-ref map 'properties)))
+    
+    (define/augment (to-map)
+      (hash-set*! (make-hash) 'name name 'properties properties))
+    
+    (define/public (prop ref)
+      (hash-ref properties ref))
+    
+    (define/public (prop-set! ref value)
+      (hash-set! properties ref value))
+    
+    (define/public (room)
+      (get-field outer-room this))
+    
+    (define/public (room-set! next-room)
+      (log-debug (~a "room set to " (get-field uid (room)) " for user " (get-field uid this)))
+      (send (room) user-leave this)
+      (send next-room user-join this)
+      (set-outer next-room)
+      )))

@@ -2,10 +2,62 @@
 
 (require "serializable.rkt")
 
-(provide room% passage%)
+(provide room%
+         passage%
+         in-room-mixin
+         room-dispatch-interface
+         serializable-in-room%)
+
+(define room-dispatch-interface
+  (interface ()
+    invoke-command
+    register-command
+    set-outer))
+
+; A mixin that supports executing registered commands or dispatching them to
+; the containing room.
+
+(define in-room-mixin
+  (mixin () (room-dispatch-interface)
+    (super-new)
+    
+    (field (outer-room #f) (commands (make-hash)))
+    
+    (define/public (register-command cmd func)
+      (unless (eq? (procedure-arity func) 1)
+        (raise-arity-error func 1))
+      (log-debug (~a "registered command " cmd " in " (get-field uid this)))
+      (hash-set! commands cmd func))
+    
+    (define/public (invoke-command cmd)
+      (log-debug (~a cmd " invoked in " (get-field uid this)))
+      (if (hash-has-key? commands cmd)
+          ((hash-ref commands cmd) this)
+          (if outer-room
+              (send outer-room invoke-command cmd)
+              (raise-user-error "command not found"))))
+    
+    (define/public (set-outer room)
+      (log-debug (~a (get-field uid this) " setting outer room to " (get-field uid room)))
+      (set! outer-room room))
+    ))
+
+(define serializable-in-room%
+  (in-room-mixin
+   (class serializable%
+     (super-new)
+     
+     (define/augment (from-map map)
+       (send this set-outer (hash-ref map 'outer-room))
+       (inner #f from-map map))
+     
+     (define/augment (to-map)
+       (hash-set! (inner #f to-map)
+                  (list (cons 'outer-room (get-field outer-room this)))))
+     )))
 
 (define room%
-  (class serializable%
+  (class serializable-in-room%
     (inherit make-next)
     (init-field [name #f])
     (init [uid (make-next)])
@@ -57,7 +109,6 @@
     
     (define/augment (to-map)
       (hash-set*! (make-hash) 'name name 'connections connections 'properties properties))
-    
     ))
 
 (define passage%
@@ -69,34 +120,6 @@
     
     (super-new)))
 
-; A mixin that supports executing registered commands or dispatching them to
-; the containing room.
-
-(define room-dispatch-interface (interface () invoke-command set-outer))
-
-(define in-room-mixin
-  (mixin () (room-dispatch-interface)
-    (super-new)
-    
-    (field (outer-room #f) (commands (make-hash)))
-    
-    (define/public (register-command cmd func)
-      (unless (eq? (procedure-arity func) 2)
-        (raise-arity-error func 2))
-      (hash-set! commands cmd func))
-    
-    (define/public (invoke-command cmd args)
-      (if (hash-has-key? commands cmd)
-          ((hash-ref commands cmd) this args)
-          (if outer-room
-              (send outer-room invoke-command cmd args)
-              (raise-user-error "command not found"))))
-    
-    (define/public (set-outer room)
-      (set! outer-room room))
-    ))
-
-
 (module+ test
   (require rackunit)
   
@@ -104,7 +127,7 @@
   (define north (new passage% (to "n") (fro "s")))
   
   (define in-a-room%
-    (in-room-mixin (class object% (super-new))))
+    (in-room-mixin (class serializable% (super-new))))
   
   
   (define obj-in-room (new in-a-room%))
@@ -138,7 +161,7 @@
                 (define obj-in-room (new in-a-room%))
                 (check-exn exn:fail:user?
                            (λ ()
-                             (send obj-in-room invoke-command "test" ""))))
+                             (send obj-in-room invoke-command "test"))))
      
      (test-suite
       "given an object inside of an outer room"
@@ -147,30 +170,31 @@
                  (reset-rooms)
                  (check-exn exn:fail:user?
                             (λ ()
-                              (send obj-in-room invoke-command "test" ""))))
+                              (send obj-in-room invoke-command "test"))))
       
       (test-case "run a command when it is invoked"
                  (reset-rooms)
                  (define was-invoked #f)
                  (send obj-in-room register-command "test"
-                       (lambda (target args) (set! was-invoked #t)))
+                       (lambda (target) (set! was-invoked #t)))
                  
                  (check-not-exn
-                  (λ () (send obj-in-room invoke-command "test" "")))
+                  (λ () (send obj-in-room invoke-command "test")))
                  (check-equal? was-invoked #t "expected command to be invoked"))
       
       (test-case "the most specific command runs when there are multiple implementations"
                  (reset-rooms)
+                 
                  (send obj-in-room register-command "test"
-                       (lambda (target args) (set! was-invoked #t)))
+                       (lambda (target) (set! was-invoked #t)))
                  
                  (define was-invoked #f)
                  
                  (send outer-room register-command "test"
-                       (lambda (target args) (set! was-invoked #f)))
+                       (lambda (target) (set! was-invoked #f)))
                  
                  (check-not-exn
-                  (λ () (send obj-in-room invoke-command "test" "")))
+                  (λ () (send obj-in-room invoke-command "test")))
                  (check-equal? was-invoked #t "expected command to be invoked"))
       
       (test-case "command defined in outer room is run when invoked from inner"
@@ -178,10 +202,25 @@
                  (define was-invoked #f)
                  
                  (send outer-room register-command "test"
-                       (lambda (target args) (set! was-invoked #t)))
+                       (lambda (target) (set! was-invoked #t)))
                  
                  (check-not-exn
-                  (λ () (send obj-in-room invoke-command "test" "")))
+                  (λ () (send obj-in-room invoke-command "test")))
+                 (check-equal? was-invoked #t "expected command to be invoked"))
+      
+      (test-case "command defined two levels up is run when invoked from inner-most room"
+                 (reset-rooms)
+                 
+                 (define was-invoked #f)
+                 
+                 (send outer-room register-command "test"
+                       (lambda (target) (set! was-invoked #t)))
+                 
+                 (define inner-inner-room (new in-a-room%))
+                 (send inner-inner-room set-outer obj-in-room)
+                 
+                 (check-not-exn
+                  (λ () (send inner-inner-room invoke-command "test")))
                  (check-equal? was-invoked #t "expected command to be invoked"))
       ))
     )

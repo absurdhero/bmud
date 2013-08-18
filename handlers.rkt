@@ -1,13 +1,11 @@
 #lang racket
 
-; expose function to find a handler
 (require "user.rkt")
+(require "map.rkt")
 
 (provide
  session-ctx%
- get-handler
- create-handler
- single-line-handler)
+ current-session)
 
 ; session information passed to handlers
 (define session-ctx%
@@ -18,42 +16,40 @@
     
     (define/public (print text) (displayln text out))))
 
-(define dispatch-table (make-hash))
-
-(define (get-handler name)
-  (hash-ref dispatch-table name #f))
+; must be set by caller using (parameterize)
+(define current-session (make-parameter null))
 
 ; a handler optionally returns a function
 ; that handles the next line of input
-(define (create-handler name fn)
-  (hash-set! dispatch-table name fn))
+(define (create-root-handler name fn)
+  (send mud-root register-command name fn))
 
 ; prints handler output and returns false
 ; indicating that the handler is done
 (define (single-line-handler name fn)
-  (create-handler name fn)
+  (create-root-handler name fn)
   #f)
 
 ; command handlers
 
 (single-line-handler
  "hello"
- (lambda (session)
-   (send session print "Hello, World!")))
+ (lambda (target)
+   (send (current-session) print "Hello, World!")))
 
 (single-line-handler
  "directions"
- (lambda (session)
-   (define user (get-field user session))
-   (send session print
+ (lambda (target)
+   (define user (get-field user (current-session)))
+   (send (current-session) print
          (string-join (send (send user room) directions)))))
 
 (single-line-handler
  "walk"
- (lambda (session)
-   (define args (get-field args session))
-   (define user (get-field user session))
-   (define (print text) (send session print text))
+ (lambda (target)
+   (define args (get-field args (current-session)))
+   (define user (get-field user (current-session)))
+   (define (print text) (send (current-session) print text))
    
    (define (move direction)
      (define current-room (send user room))
@@ -67,6 +63,6 @@
          (if (move (first args))
              (print (string-join
                  (list "walking" (first args) "to" (get-field name (send user room)))))
-             (print "I don't see how to do that."))
+             (print "You can't go that way."))
          ))))
 
