@@ -27,7 +27,7 @@
   
   (display (colorize 'red "Welcome to the dungeons of BMUD!\n\n") out)
   
-  (next-line (user-get name) in out) ;; processes input until the client exits
+  (next-line (get-user name) in out) ;; processes input until the client exits
   (close-connection))
 
 (define (read-username in out)

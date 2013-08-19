@@ -66,3 +66,9 @@
              (print "You can't go that way."))
          ))))
 
+(single-line-handler
+ "who"
+ (λ (target)
+   (define user (get-field user (current-session)))
+   (define (print text) (send (current-session) print text))
+   (print (string-join (map (λ (u) (get-field name u)) (send (send user room) user-list)) "\n"))))

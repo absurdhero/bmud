@@ -94,6 +94,8 @@
       (hash-set! users (get-field uid user) user))
     (define/public (user-leave user)
       (hash-remove! users (get-field uid user)))
+    (define/public (user-list)
+      (hash-values users))
     
     ; store arbitrary properties
     (define properties (make-hash))

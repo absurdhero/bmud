@@ -1,6 +1,7 @@
 #lang racket
 
 (require "room.rkt")
+(require "object-store.rkt")
 
 (provide starting-room mud-root)
 
@@ -19,6 +20,7 @@
 
 (define (add-room from new-name passage)
   (define new-room (new room% (name new-name)))
+  (add-object new-room)
   (send new-room set-outer mud-root)
   (send from connect new-room passage)
   new-room)

@@ -2,23 +2,29 @@
 
 (require "serializable.rkt")
 (require "room.rkt")
+(require "object-store.rkt")
 
 (provide
  user-exists?
- user-get
+ user-id
+ get-user
  create-user)
 
-(define users (make-hash))
+(define user-ids (make-hash))
 
 (define (user-exists? name)
-  (hash-has-key? users name))
+  (hash-has-key? user-ids name))
 
-(define (user-get name)
-  (hash-ref users name))
+(define (user-id name)
+  (hash-ref user-ids name))
+
+(define (get-user name)
+  (get-object (user-id name)))
 
 (define (create-user name starting-room)
-  (hash-set! users name
-             (new user% (name name) (starting-room starting-room))))
+  (define user (new user% (name name) (starting-room starting-room)))
+  (add-object user)
+  (hash-set! user-ids name (get-field uid user)))
 
 
 (define user%
@@ -57,4 +63,5 @@
       (send (room) user-leave this)
       (send next-room user-join this)
       (set-outer next-room)
-      )))
+      )
+    ))
