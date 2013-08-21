@@ -24,7 +24,8 @@
 (define (create-user name starting-room)
   (define user (new user% (name name) (starting-room starting-room)))
   (add-object user)
-  (hash-set! user-ids name (get-field uid user)))
+  (hash-set! user-ids name (get-field uid user))
+  user)
 
 
 (define user%

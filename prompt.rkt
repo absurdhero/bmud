@@ -21,9 +21,20 @@
   
   (display "\n" out)
   
-  (unless (user-exists? name)
-    (display (colorize 'yellow "I have not seen you before.\n") out)
-    (create-user name starting-room))
+  (if (user-exists? name)
+      (begin
+        (display (colorize 'yellow "Password: ") out)
+        (let ([password (read-line in)])
+          (unless (equal? password (send (get-user name) prop 'password))
+            (displayln "Incorrect Password." out)
+            (displayln "goodbye" out)
+           (close-connection))))
+      (begin
+        (display (colorize 'yellow "I have not seen you before.\n") out)
+        (display (colorize 'yellow "Please choose a password: ") out)
+        (let ([password (read-line in)]
+              [user (create-user name starting-room)])
+          (send user prop-set! 'password password))))
   
   (display (colorize 'red "Welcome to the dungeons of BMUD!\n\n") out)
   
